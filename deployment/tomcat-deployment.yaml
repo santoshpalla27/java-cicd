@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: tomcat
-        image: santoshpalla27/java-cicd:16
+        image: santoshpalla27/java-cicd:17
         ports:
         - containerPort: 8080
         resources:
