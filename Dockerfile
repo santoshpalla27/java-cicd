@@ -1,22 +1,11 @@
-FROM maven AS buildstage
-RUN mkdir /opt/webpage
-WORKDIR /opt/webpage
-COPY . .
-RUN mvn clean install 
-
-FROM tomcat
-WORKDIR webapps
-COPY --from=buildstage /opt/webpage/target/*.war .
-RUN rm -rf ROOT && mv *.war ROOT.war
+FROM adoptopenjdk/openjdk11 
+      
 EXPOSE 8080
 
+ENV APP_HOME /usr/src/app
 
-FROM eclipse-temurin:17-jdk-alpine
-    
-WORKDIR app 
- 
-COPY --from=buildstage /opt/webpage/target/*.war .
+COPY target/*.jar $APP_HOME/app.jar
 
-EXPOSE 8080
+WORKDIR $APP_HOME
 
-CMD ["java", "-jar", "*.war"]
+CMD ["java", "-jar", "app.jar"]
