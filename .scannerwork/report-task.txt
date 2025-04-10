@@ -1,0 +1,6 @@
+projectKey=santosh-java
+serverUrl=http://54.159.122.170:9000
+serverVersion=25.4.0.105899
+dashboardUrl=http://54.159.122.170:9000/dashboard?id=santosh-java
+ceTaskId=016821fc-0ec2-48b7-b382-4e7197a09cfb
+ceTaskUrl=http://54.159.122.170:9000/api/ce/task?id=016821fc-0ec2-48b7-b382-4e7197a09cfb
