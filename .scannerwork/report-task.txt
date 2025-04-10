@@ -2,5 +2,5 @@ projectKey=santosh-java
 serverUrl=http://54.92.223.81:9000
 serverVersion=25.4.0.105899
 dashboardUrl=http://54.92.223.81:9000/dashboard?id=santosh-java
-ceTaskId=caabea3b-a431-4ba7-8933-a1b3ffe388a8
-ceTaskUrl=http://54.92.223.81:9000/api/ce/task?id=caabea3b-a431-4ba7-8933-a1b3ffe388a8
+ceTaskId=a402a14d-e536-46ee-8171-95bf9dc17a34
+ceTaskUrl=http://54.92.223.81:9000/api/ce/task?id=a402a14d-e536-46ee-8171-95bf9dc17a34
