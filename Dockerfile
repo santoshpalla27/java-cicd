@@ -1,11 +1,11 @@
-FROM adoptopenjdk/openjdk11 
-      
+FROM maven AS buildstage
+RUN mkdir /opt/webpage
+WORKDIR /opt/webpage
+COPY . .
+RUN mvn clean install 
+
+FROM tomcat
+WORKDIR webapps
+COPY --from=buildstage /opt/webpage/target/*.war .
+RUN rm -rf ROOT && mv *.war ROOT.war
 EXPOSE 8080
-
-ENV APP_HOME /usr/src/app
-
-COPY target/*.jar $APP_HOME/app.jar
-
-WORKDIR $APP_HOME
-
-CMD ["java", "-jar", "app.jar"]
