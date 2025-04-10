@@ -1,172 +1,28 @@
 pipeline {
-    agent any
+    agent { label 'agent-1'}
+     
     tools {
-        maven 'maven'
-        jdk 'jdk'
+        maven 'maven3.9'
+        jdk 'jdk17'
     }
-    environment {
-        SCANNER_HOME=tool 'sonar-scanner'
-    }
+
     stages {
-        stage("clean workspace") {
+        
+        stage('Compile') {
             steps {
-                cleanWs()
+             sh 'mvn compile'
             }
         }
-        stage('poll scm') {
+        
+        stage('Test') {
             steps {
-                git branch: 'main', url: 'https://github.com/santoshpalla27/java-cicd.git'
+              sh 'mvn test' 
             }
         }
-        stage('test') {
+        
+        stage('Build') {
             steps {
-                sh 'mvn test'
-            }
-        }
-        stage('trivy fs scan') {
-            steps {
-                sh 'trivy fs --format table -o fs.html .'
-            }
-        }
-        stage('snyk dependency scan') {
-            steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                        snyk auth ${SNYK_TOKEN}
-                        snyk test --file=pom.xml --json > snyk-dep-report.json
-                        snyk-to-html -i snyk-dep-report.json -o snyk-dep-report.html
-                    '''
-                }
-                publishHTML([reportDir: '.', reportFiles: 'snyk-dep-report.html', reportName: 'Snyk Dependency Report'])
-            }
-        }
-        stage('sonar scan') {
-            steps {
-                withSonarQubeEnv('sonar-server') { 
-                        sh ''' $SCANNER_HOME/bin/sonar-scanner \
-                        -Dsonar.projectName=santosh-java \
-                        -Dsonar.projectKey=santosh-java \
-                        -Dsonar.sources=.    \
-                        -Dsonar.exclusions=fs.html,image.html,dependency-check-report.xml,snyk-dep-report.html
-                        '''
-                }
-            }
-        }
-        // stage('sonar quality gate') {
-        //     steps {
-        //         script {
-        //             def qualityGate = waitForQualityGate()  
-        //             if (qualityGate.status != 'OK') {  
-        //                 error "Quality Gate failed: ${qualityGate.status}"
-        //             }
-        //             else{
-        //                 echo "Quality Gate passed"
-        //             }
-        //         }
-        //     }
-        // }
-        stage('build') {
-            steps {
-                sh 'mvn clean install '
-            }
-        }
-        stage('nexus upload') {
-            steps {
-                withMaven(globalMavenSettingsConfig: 'maven-setting', jdk: 'jdk', maven: 'maven', mavenSettingsConfig: '', traceability: true) {
-                    sh 'mvn deploy'
-                }
-            }
-        }
-        stage('owasp dependency check') {
-            steps {
-                withCredentials([string(credentialsId: 'owasp', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: "--scan target/ --nvdApiKey ${NVD_API_KEY}", odcInstallation: 'owasp'
-                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-                }
-            }
-        }
-        stage('remove previous images'){
-            steps {
-                script {
-                    // Get all Docker image IDs
-                    def images = sh(script: "docker images -q", returnStdout: true).trim()
-
-                    // Remove all images if any are found
-                    if (images) {
-                        sh "echo '${images}' | tr '\\n' ' ' | xargs -r docker rmi -f"
-                    } else {
-                        echo "No Docker images to remove."
-                    }
-                }
-            }
-        }
-        stage('docker build') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
-                        sh 'docker build -t santoshpalla27/java-cicd:${BUILD_NUMBER} .'
-                    }
-                }
-            }
-        }
-        stage('trivy image scan') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
-                        sh 'trivy image --format table -o image.html santoshpalla27/java-cicd:${BUILD_NUMBER}'
-                    }
-                }
-            }
-        }
-        stage('snyk docker scan') {
-            steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                        snyk auth ${SNYK_TOKEN}
-                        snyk container test santoshpalla27/java-cicd:${BUILD_NUMBER} --json > snyk-docker-report.html || echo "Snyk scan completed with issues"
-
-                        snyk-to-html -i snyk-docker-report.json -o snyk-docker-report.html
-                    '''
-                }
-                publishHTML([reportDir: '.', reportFiles: 'snyk-docker-report.html', reportName: 'Snyk Docker Image Report'])
-            }
-        }
-
-        stage('docker push') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
-                        sh 'docker push santoshpalla27/java-cicd:${BUILD_NUMBER} '                    }
-                }
-            }
-        }
-        stage('edit kubernetes manifests'){
-            steps{
-                script{
-                    withCredentials([string(credentialsId: 'github_token', variable: 'github_token')]) {
-                        sh '''
-                            git config user.email "santoshpalla2002@gmail.com"
-                            git config user.name "santoshpalla27"
-                            sed -i "s#santoshpalla27/*.*#santoshpalla27/java-cicd:${BUILD_NUMBER}#" deployment/tomcat-deployment.yaml
-                            git add .
-                            git commit -m "Updated Docker images to version ${BUILD_NUMBER}"
-                            git push https://${github_token}@github.com/santoshpalla27/java-cicd.git HEAD:main
-
-                        '''
-                    }
-                }
-            }
-        }
-        stage('snyk iac scan') {
-            steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                        snyk auth ${SNYK_TOKEN}
-                        snyk iac test deployment/tomcat-deployment.yaml --json > snyk-iac-report.json
-                        snyk-to-html -i snyk-iac-report.json -o snyk-iac-report.html
-                    '''
-                }
-                publishHTML([reportDir: '.', reportFiles: 'snyk-iac-report.html', reportName: 'Snyk IaC Report'])
+              sh "mvn package"
             }
         }
     }
